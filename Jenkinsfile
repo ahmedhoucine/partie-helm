@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        DOCKER_IMAGE = 'ahmedhoucine0/mon-app'
+        DOCKER_IMAGE = 'ahmedhoucine0/mon-app-helm'
     }
     stages {
         stage('Clean Workspace') {
@@ -11,8 +11,8 @@ pipeline {
         }
         stage('Cloner le dépôt') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/ahmedhoucine/tp3-devops.git'
+                git branch: 'master',
+                    url: 'https://github.com/ahmedhoucine/partie-helm.git'
             }
         }
         
@@ -50,63 +50,21 @@ pipeline {
             }
         }
         
-        stage('Déployer sur Kubernetes') {
-    steps {
-        sh '''
-            echo "=== Installation de kubectl ==="
-            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-            chmod +x kubectl
-            mv kubectl /usr/local/bin/
-            
-            echo "=== Configuration pour accéder à Minikube sur l'hôte ==="
-            # Obtenir l'adresse IP de l'hôte Docker
-            HOST_IP=$(ip route | grep default | awk '{print $3}' || echo "host.docker.internal")
-            echo "Adresse de l'hôte: $HOST_IP"
-            
-            # Créer un kubeconfig personnalisé pointant vers l'hôte
-            cat > /tmp/kubeconfig-jenkins << EOF
-apiVersion: v1
-clusters:
-- cluster:
-    certificate-authority: /tmp/minikube-ca.crt
-    server: https://$HOST_IP:63980
-  name: minikube
-contexts:
-- context:
-    cluster: minikube
-    user: minikube
-  name: minikube
-current-context: minikube
-kind: Config
-preferences: {}
-users:
-- name: minikube
-  user:
-    client-certificate: /tmp/minikube-client.crt
-    client-key: /tmp/minikube-client.key
-EOF
-            
-            export KUBECONFIG=/tmp/kubeconfig-jenkins
-            
-            echo "=== Vérification ==="
-            kubectl cluster-info
-            kubectl get nodes
-        '''
-    }
-}
+        stage('Déployer avec Helm') {
+            steps {
+                script {
+                    sh '''
+                        helm upgrade --install mon-app $HELM_CHART_PATH \
+                        --set image.repository=$DOCKER_IMAGE \
+                        --set image.tag=latest
+                    '''
+                }
+            }
+        }
     }
     post {
         always {
-            echo 'Pipeline terminé'
-        }
-        success {
-            echo 'Déploiement réussi!'
-        }
-        failure {
-            echo 'Échec du déploiement'
+            echo 'Pipeline Helm terminé'
         }
     }
 }
-
-
-
