@@ -2,7 +2,6 @@ pipeline {
     agent any
     environment {
         DOCKER_IMAGE = 'ahmedhoucine0/mon-app-helm'
-        HELM_VERSION = '3.12.0' // ou la version souhaitée
     }
     stages {
         stage('Clean Workspace') {
@@ -10,19 +9,6 @@ pipeline {
                 cleanWs()
             }
         }
-        
-        stage('Installer Helm') {
-            steps {
-                sh '''
-                    echo "Installation de Helm..."
-                    curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-                    chmod 700 get_helm.sh
-                    ./get_helm.sh --version v${HELM_VERSION}
-                    helm version
-                '''
-            }
-        }
-        
         stage('Cloner le dépôt') {
             steps {
                 git branch: 'master',
@@ -66,15 +52,13 @@ pipeline {
         
         stage('Déployer avec Helm') {
             steps {
-                sh '''
-                    echo "Vérification de l'installation Helm:"
-                    helm version
-                    echo "Déploiement avec Helm..."
-                    helm upgrade --install mon-app . \
-                        --set image.repository=${DOCKER_IMAGE} \
-                        --set image.tag=latest \
-                        --atomic --timeout 5m
-                '''
+                script {
+                    sh '''
+                        helm upgrade --install mon-app $HELM_CHART_PATH \
+                        --set image.repository=$DOCKER_IMAGE \
+                        --set image.tag=latest
+                    '''
+                }
             }
         }
     }
